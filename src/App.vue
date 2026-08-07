@@ -2,9 +2,38 @@
 import { computed, ref } from 'vue'
 
 const activeView = ref('Pulpit')
+const isAuthenticated = ref(false)
+const email = ref('anna@twojafirma.pl')
+const password = ref('demo1234')
+const loginError = ref('')
+const activeUser = ref(null)
 
-const navigation = [
+const clientAccount = {
+  name: 'Anna Kowalska',
+  initials: 'AK',
+  company: 'Twoja Firma Sp. z o.o.',
+  email: 'anna@twojafirma.pl',
+  role: 'Klient',
+}
+
+const adminAccount = {
+  name: 'Dariusz Paśko',
+  initials: 'DP',
+  company: '8piętro',
+  email: 'dariuszpasko@icloud.com',
+  role: 'Administrator',
+}
+
+const clientNavigation = [
   { label: 'Pulpit', icon: '▦' },
+  { label: 'Usługi', icon: '◫' },
+  { label: 'Płatności', icon: '◌' },
+  { label: 'SEO', icon: '↗' },
+]
+
+const adminNavigation = [
+  { label: 'Pulpit', icon: '▦' },
+  { label: 'Klienci', icon: '♙' },
   { label: 'Usługi', icon: '◫' },
   { label: 'Płatności', icon: '◌' },
   { label: 'SEO', icon: '↗' },
@@ -21,16 +50,61 @@ const invoices = [
   { number: 'FV/07/2026/005', name: 'Odnowienie domeny twojafirma.pl', date: '18.09.2026', amount: '79,00 zł', status: 'Zaplanowana' },
 ]
 
-const viewTitle = computed(() => activeView.value === 'Pulpit' ? 'Dzień dobry, Anna!' : activeView.value)
+const isAdmin = computed(() => activeUser.value?.role === 'Administrator')
+const navigation = computed(() => isAdmin.value ? adminNavigation : clientNavigation)
+const panelName = computed(() => isAdmin.value ? 'Panel administratora' : 'Panel klienta')
+const viewTitle = computed(() => activeView.value === 'Pulpit' ? `Dzień dobry, ${activeUser.value?.name.split(' ')[0] || ''}!` : activeView.value)
+
+function login() {
+  const credentials = { email: email.value.trim().toLowerCase(), password: password.value }
+  if (credentials.email === adminAccount.email && credentials.password === 'admin1234') {
+    activeUser.value = adminAccount
+  } else if (credentials.email === clientAccount.email && credentials.password === 'demo1234') {
+    activeUser.value = clientAccount
+  } else {
+    loginError.value = 'Nieprawidłowe dane. Użyj jednego z kont demonstracyjnych.'
+    return
+  }
+
+  loginError.value = ''
+  isAuthenticated.value = true
+}
+
+function logout() {
+  isAuthenticated.value = false
+  activeUser.value = null
+  activeView.value = 'Pulpit'
+}
 </script>
 
 <template>
-  <div class="app-shell">
+  <main v-if="!isAuthenticated" class="login-page">
+    <section class="login-panel">
+      <a class="login-brand" href="#" @click.prevent><span>8</span>pietro<span class="brand-dot">.</span></a>
+      <div class="login-copy">
+        <p class="eyebrow">PANEL KLIENTA</p>
+        <h1>Witaj ponownie</h1>
+        <p>Zaloguj się, aby sprawdzić usługi, płatności i raporty dla swojej firmy.</p>
+      </div>
+      <form class="login-form" @submit.prevent="login">
+        <label for="email">Adres e-mail</label>
+        <input id="email" v-model="email" type="email" autocomplete="email" placeholder="nazwa@firma.pl" />
+        <div class="password-row"><label for="password">Hasło</label><button type="button">Nie pamiętam hasła</button></div>
+        <input id="password" v-model="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+        <p v-if="loginError" class="login-error">{{ loginError }}</p>
+        <button class="login-button" type="submit">Zaloguj się <span>→</span></button>
+      </form>
+      <p class="demo-note">Demo klienta: anna@twojafirma.pl / demo1234<br>Demo administratora: dariuszpasko@icloud.com / admin1234</p>
+    </section>
+    <aside class="login-aside"><div class="login-orb orb-one"></div><div class="login-orb orb-two"></div><div class="login-aside-content"><span class="aside-icon">◫</span><blockquote>„Wszystkie ważne informacje o Twojej obecności w sieci, w jednym miejscu.”</blockquote><p>8piętro · partner cyfrowy Twojej firmy</p></div></aside>
+  </main>
+
+  <div v-else class="app-shell">
     <aside class="sidebar">
       <a class="brand" href="#" @click.prevent="activeView = 'Pulpit'">
         <span class="brand-mark">8</span><span>pietro<span class="brand-dot">.</span></span>
       </a>
-      <p class="sidebar-label">PANEL KLIENTA</p>
+      <p class="sidebar-label">{{ panelName.toUpperCase() }}</p>
       <nav>
         <button v-for="item in navigation" :key="item.label" class="nav-item" :class="{ active: activeView === item.label }" @click="activeView = item.label">
           <span>{{ item.icon }}</span>{{ item.label }}
@@ -38,24 +112,35 @@ const viewTitle = computed(() => activeView.value === 'Pulpit' ? 'Dzień dobry, 
       </nav>
       <div class="sidebar-bottom">
         <button class="nav-item"><span>?</span> Pomoc</button>
-        <button class="profile"><span class="avatar">AK</span><span><strong>Anna Kowalska</strong><small>Klient</small></span><b>⌄</b></button>
+        <button class="profile" @click="logout" title="Wyloguj"><span class="avatar">{{ activeUser.initials }}</span><span><strong>{{ activeUser.name }}</strong><small>{{ activeUser.role }} · Wyloguj</small></span><b>⌄</b></button>
       </div>
     </aside>
 
     <main>
       <header class="topbar">
         <button class="mobile-logo" @click="activeView = 'Pulpit'">8pietro.</button>
-        <div class="breadcrumb">Panel klienta <span>/</span> {{ activeView }}</div>
-        <div class="top-actions"><button class="bell" aria-label="Powiadomienia">♧<i></i></button><button class="avatar">AK</button></div>
+        <div class="breadcrumb">{{ panelName }} <span>/</span> {{ activeView }}</div>
+        <div class="top-actions"><button class="bell" aria-label="Powiadomienia">♧<i></i></button><button class="avatar" :title="activeUser.name">{{ activeUser.initials }}</button></div>
       </header>
 
       <section class="content">
         <div class="heading-row">
-          <div><h1>{{ viewTitle }}</h1><p v-if="activeView === 'Pulpit'">Oto najważniejsze informacje o Twoich usługach.</p><p v-else>Przeglądaj informacje dotyczące: {{ activeView.toLowerCase() }}.</p></div>
+          <div><h1>{{ viewTitle }}</h1><p v-if="activeView === 'Pulpit'">{{ isAdmin ? 'Przegląd najważniejszych informacji o klientach i usługach.' : 'Oto najważniejsze informacje o Twoich usługach.' }}</p><p v-else>Przeglądaj informacje dotyczące: {{ activeView.toLowerCase() }}.</p></div>
           <button class="outline-button">▢ Centrum pomocy</button>
         </div>
 
-        <section v-if="activeView === 'Pulpit'" class="dashboard">
+        <section v-if="activeView === 'Pulpit' && isAdmin" class="dashboard admin-dashboard">
+          <div class="admin-banner"><div><span class="eyebrow">KONTO GŁÓWNE</span><h2>Zarządzaj klientami z jednego miejsca</h2><p>Dodawaj usługi, kontroluj terminy odnowień i reaguj na płatności wymagające uwagi.</p></div><span class="admin-banner-icon">♙</span></div>
+          <div class="stat-grid admin-stats">
+            <article class="stat-card"><div class="stat-head"><span>Aktywni klienci</span><b class="blue-icon">♙</b></div><strong>12</strong><p>+2 w tym miesiącu</p></article>
+            <article class="stat-card"><div class="stat-head"><span>Aktywne usługi</span><b class="violet-icon">◫</b></div><strong>34</strong><p>Hosting, domeny i SEO</p></article>
+            <article class="stat-card"><div class="stat-head"><span>Płatności do uwagi</span><b class="orange-icon">!</b></div><strong>3</strong><p>Wymagają kontaktu</p></article>
+          </div>
+          <div class="section-title"><div><h2>Ostatnio aktywni klienci</h2><p>Szybki podgląd spraw wymagających działania.</p></div><button class="text-button" @click="activeView = 'Klienci'">Wszyscy klienci <span>→</span></button></div>
+          <div class="table-wrap"><table><thead><tr><th>KLIENT</th><th>USŁUGI</th><th>NAJBLIŻSZE ODNOWIENIE</th><th>PŁATNOŚCI</th><th>STATUS</th></tr></thead><tbody><tr><td><strong>Anna Kowalska</strong><small class="table-subtitle">Twoja Firma Sp. z o.o.</small></td><td>3</td><td>18.09.2026</td><td>369,00 zł</td><td><span class="badge warning">Do kontaktu</span></td></tr><tr><td><strong>Michał Nowak</strong><small class="table-subtitle">Studio N</small></td><td>2</td><td>03.12.2026</td><td>—</td><td><span class="badge success">W porządku</span></td></tr><tr><td><strong>Julia Wiśniewska</strong><small class="table-subtitle">W Design</small></td><td>4</td><td>12.08.2026</td><td>149,00 zł</td><td><span class="badge warning">Termin dziś</span></td></tr></tbody></table></div>
+        </section>
+
+        <section v-else-if="activeView === 'Pulpit'" class="dashboard">
           <div class="alert"><span class="alert-icon">!</span><div><strong>Masz płatność do uregulowania</strong><p>Termin płatności za odnowienie hostingu mija za 41 dni.</p></div><button>Zobacz płatność <span>→</span></button></div>
 
           <div class="stat-grid">
